@@ -1762,7 +1762,7 @@ function importBackup(event) {
    sempre chiaro se si sta usando l'ultima versione ricevuta o una copia precedente.
    Viene mostrato in fondo a Impostazioni e anche in console all'avvio.
    ===================================================================================== */
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.7';
 (function showAppVersion() {
   const label = document.getElementById('app-version-label');
   if (label) label.textContent = `Versione ${APP_VERSION}`;
@@ -5434,6 +5434,11 @@ async function initAppAfterAuth() {
       if (typeof closePdfPreview === 'function') closePdfPreview();
       return 'pdf-preview';
     }
+    const previewScreen = document.getElementById('preview-screen');
+    if (previewScreen && !previewScreen.classList.contains('hidden')) {
+      if (typeof closePreviewScreen === 'function') closePreviewScreen();
+      return 'preview-screen';
+    }
     const backdrops = document.querySelectorAll('[id$="-backdrop"]');
     for (const el of backdrops) {
       if (!el.classList.contains('hidden')) {
@@ -5458,7 +5463,7 @@ async function initAppAfterAuth() {
   window.addEventListener('popstate', () => {
     const closedId = closeTopmostOpenModal();
     if (closedId) {
-      if (closedId === 'pdf-preview' && typeof navigate === 'function') navigate('turni');
+      if ((closedId === 'pdf-preview' || closedId === 'preview-screen') && typeof navigate === 'function') navigate('turni');
       pushBackGuard();
       return;
     }
