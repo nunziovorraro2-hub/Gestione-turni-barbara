@@ -169,6 +169,7 @@
         Non hai un account? Registrati
       </button>
     </form>
+    <p class="text-center text-[11px] text-slate-400 mt-3" id="app-version-label-login"></p>
   </div>
 
   <!-- ===================================================== REGISTRAZIONE: nuovo account ===================================================== -->
@@ -692,7 +693,10 @@
             <p class="text-xs text-slate-400">Anteprima dei turni del nome scelto, poi esporta in PDF</p>
           </div>
         </label>
-        <select id="emp-print-select-preview" onchange="triggerEmpPrint(this.value)" class="w-full border border-slate-300 rounded-lg p-3 text-sm font-medium outline-none"></select>
+        <button id="emp-print-select-preview" onclick="openEmpPrintPicker()" class="w-full flex items-center justify-between border border-slate-300 rounded-lg p-3 text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">
+          <span>Seleziona dipendente…</span>
+          <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -835,7 +839,7 @@
   <div id="voice-emp-picker-backdrop" class="hidden fade-in fixed inset-0 bg-slate-900/50 z-[95] flex items-end sm:items-center justify-center no-print" onclick="if(event.target===this)closeVoiceEmployeePicker()">
     <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-sm w-full max-h-[75vh] flex flex-col pop-in">
       <div class="p-4 sm:p-5 pb-2 shrink-0">
-        <h3 class="font-display font-bold text-slate-800 mb-2">Scegli il dipendente</h3>
+        <h3 class="font-display font-bold text-slate-800 mb-2" id="voice-emp-picker-title">Scegli il dipendente</h3>
         <button id="voice-emp-picker-none-btn" onclick="selectVoiceEmployee('')" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:bg-slate-50 border border-dashed border-slate-200 mb-1">Nessuno (lascia vuoto)</button>
       </div>
       <div id="voice-emp-picker-list" class="px-4 sm:px-5 pb-4 sm:pb-5 space-y-1 overflow-y-auto flex-1"></div>
@@ -991,12 +995,12 @@
           <div class="flex items-center gap-2">
             <div class="flex-1">
               <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Inizio</label>
-              <input type="time" id="hours-matt-start" class="w-full border border-slate-300 rounded-lg p-2.5 text-center text-base font-bold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+              <input type="text" id="hours-matt-start" readonly placeholder="--:--" onclick="openTimePicker('hours-matt-start','Inizio mattina')" class="w-full border border-slate-300 rounded-lg p-2.5 text-center text-base font-bold outline-none cursor-pointer bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
             </div>
             <span class="text-slate-300 font-bold mt-4">–</span>
             <div class="flex-1">
               <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Fine</label>
-              <input type="time" id="hours-matt-end" class="w-full border border-slate-300 rounded-lg p-2.5 text-center text-base font-bold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+              <input type="text" id="hours-matt-end" readonly placeholder="--:--" onclick="openTimePicker('hours-matt-end','Fine mattina')" class="w-full border border-slate-300 rounded-lg p-2.5 text-center text-base font-bold outline-none cursor-pointer bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
             </div>
           </div>
         </div>
@@ -1006,12 +1010,12 @@
           <div class="flex items-center gap-2">
             <div class="flex-1">
               <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Inizio</label>
-              <input type="time" id="hours-pom-start" class="w-full border border-slate-300 rounded-lg p-2.5 text-center text-base font-bold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+              <input type="text" id="hours-pom-start" readonly placeholder="--:--" onclick="openTimePicker('hours-pom-start','Inizio pomeriggio')" class="w-full border border-slate-300 rounded-lg p-2.5 text-center text-base font-bold outline-none cursor-pointer bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
             </div>
             <span class="text-slate-300 font-bold mt-4">–</span>
             <div class="flex-1">
               <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Fine</label>
-              <input type="time" id="hours-pom-end" class="w-full border border-slate-300 rounded-lg p-2.5 text-center text-base font-bold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+              <input type="text" id="hours-pom-end" readonly placeholder="--:--" onclick="openTimePicker('hours-pom-end','Fine pomeriggio')" class="w-full border border-slate-300 rounded-lg p-2.5 text-center text-base font-bold outline-none cursor-pointer bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
             </div>
           </div>
         </div>
@@ -1020,6 +1024,37 @@
       <div class="flex gap-2 justify-end mt-5">
         <button onclick="closeHoursModal()" class="px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-100">Annulla</button>
         <button onclick="saveHoursModal()" class="px-5 py-2.5 rounded-xl font-semibold text-sm text-white bg-brand-600 hover:bg-brand-700">Salva</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ SELETTORE ORARIO (sostituisce l'input nativo type="time": stesso identico stile/posizionamento dei bottoni degli altri modali dell'app, sempre leggibile) ============================================================ -->
+  <div id="time-picker-backdrop" class="hidden fade-in fixed inset-0 bg-slate-900/50 z-[92] flex items-end sm:items-center justify-center no-print" onclick="if(event.target===this)cancelTimePicker()">
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-xs w-full p-5 pop-in" style="padding-bottom: calc(1.25rem + var(--safe-b));">
+      <h3 class="font-display font-bold text-slate-800 mb-3" id="time-picker-label">Seleziona orario</h3>
+
+      <div class="flex items-center justify-center gap-3 mb-1">
+        <div class="flex flex-col items-center gap-1.5">
+          <button type="button" onclick="timePickerStepHour(1)" aria-label="Ora successiva" class="w-11 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors"><i class="fa-solid fa-chevron-up"></i></button>
+          <div class="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center font-display font-extrabold text-3xl text-slate-800 tabular-nums" id="time-picker-hour">09</div>
+          <button type="button" onclick="timePickerStepHour(-1)" aria-label="Ora precedente" class="w-11 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors"><i class="fa-solid fa-chevron-down"></i></button>
+          <span class="text-[10px] font-semibold text-slate-400 uppercase mt-0.5">Ore</span>
+        </div>
+        <div class="font-display font-extrabold text-3xl text-slate-300" style="margin-top:-1.5rem;">:</div>
+        <div class="flex flex-col items-center gap-1.5">
+          <button type="button" onclick="timePickerStepMinute(1)" aria-label="Minuti successivi" class="w-11 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors"><i class="fa-solid fa-chevron-up"></i></button>
+          <div class="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center font-display font-extrabold text-3xl text-slate-800 tabular-nums" id="time-picker-minute">30</div>
+          <button type="button" onclick="timePickerStepMinute(-1)" aria-label="Minuti precedenti" class="w-11 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors"><i class="fa-solid fa-chevron-down"></i></button>
+          <span class="text-[10px] font-semibold text-slate-400 uppercase mt-0.5">Minuti</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-2 mt-5">
+        <button type="button" onclick="clearTimePicker()" class="px-3 py-2.5 rounded-xl font-semibold text-sm text-red-500 hover:bg-red-50 transition-colors">Cancella</button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="cancelTimePicker()" class="px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-100 transition-colors">Annulla</button>
+          <button type="button" onclick="confirmTimePicker()" class="px-5 py-2.5 rounded-xl font-semibold text-sm text-white bg-brand-600 hover:bg-brand-700 transition-colors">Imposta</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1726,10 +1761,12 @@ function importBackup(event) {
    sempre chiaro se si sta usando l'ultima versione ricevuta o una copia precedente.
    Viene mostrato in fondo a Impostazioni e anche in console all'avvio.
    ===================================================================================== */
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 (function showAppVersion() {
   const label = document.getElementById('app-version-label');
   if (label) label.textContent = `Versione ${APP_VERSION}`;
+  const loginLabel = document.getElementById('app-version-label-login');
+  if (loginLabel) loginLabel.textContent = `v${APP_VERSION}`;
   console.log(`Gestione Turni Settimanali — versione ${APP_VERSION}`);
 })();
 
@@ -2809,10 +2846,17 @@ function openEmployeePicker(context, options) {
     ? 'w-full text-left px-4 py-3.5 rounded-xl text-base font-semibold text-slate-400 hover:bg-slate-50 border border-dashed border-slate-200 mb-1'
     : 'w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:bg-slate-50 border border-dashed border-slate-200 mb-1';
 
+  document.getElementById('voice-emp-picker-title').textContent = (options && options.title) || 'Scegli il dipendente';
+
   const noneBtn = document.getElementById('voice-emp-picker-none-btn');
   if (noneBtn) {
-    noneBtn.className = noneClass;
-    noneBtn.textContent = (options && options.noneLabel) || 'Nessuno (lascia vuoto)';
+    if (options && options.hideNone) {
+      noneBtn.classList.add('hidden');
+    } else {
+      noneBtn.classList.remove('hidden');
+      noneBtn.className = noneClass;
+      noneBtn.textContent = (options && options.noneLabel) || 'Nessuno (lascia vuoto)';
+    }
   }
 
   const list = document.getElementById('voice-emp-picker-list');
@@ -2852,10 +2896,20 @@ function applyPickerSelection(name) {
     storicoEmployee = name || null;
     closeVoiceEmployeePicker();
     renderStorico();
+  } else if (pickerContext.mode === 'printPreview') {
+    closeVoiceEmployeePicker();
+    if (name) triggerEmpPrint(name);
   } else {
     closeVoiceEmployeePicker();
   }
 }
+
+// Apre il selettore dipendente per "Turni per dipendente" nella schermata Anteprima
+// (al posto della tendina nativa <select>): un tap mostra subito l'elenco completo,
+// invece di dover aprire il menu a tendina del sistema.
+window.openEmpPrintPicker = function() {
+  openEmployeePicker({ mode: 'printPreview' }, { large: true, hideNone: true, title: 'Turni per dipendente' });
+};
 
 // Apre il selettore per assegnare manualmente un dipendente a un turno specifico
 // (usato al posto della tendina nativa nelle celle di Turni, sia desktop che mobile).
@@ -2991,6 +3045,69 @@ function saveHoursModal() {
   scheduleAutosave();
   showToast(`Centro ${newName} aggiornato`, 'success');
 }
+
+/* ---------------- SELETTORE ORARIO (modale) ----------------
+   Sostituisce l'input nativo type="time" (le cui schermate/pulsanti sono disegnati
+   dal sistema operativo e non modificabili da qui) con un modale nostro: due
+   contatori (ore 0-23, minuti a step di 5) e i tre pulsanti Cancella/Annulla/Imposta,
+   sempre leggibili perché il layout è lo stesso, controllabile, degli altri modali
+   dell'app. timePickerTargetId ricorda in quale campo scrivere il valore scelto. */
+let timePickerTargetId = null;
+let timePickerHour = 9;
+let timePickerMinute = 0;
+
+window.openTimePicker = function(targetId, label) {
+  timePickerTargetId = targetId;
+  const current = document.getElementById(targetId).value;
+  if (current && /^\d{1,2}:\d{2}$/.test(current)) {
+    const [h, m] = current.split(':').map(Number);
+    timePickerHour = Math.min(23, Math.max(0, h));
+    // Arrotonda al multiplo di 5 più vicino, così un orario salvato in precedenza
+    // con minuti "storti" resta comunque selezionabile senza bloccare l'apertura.
+    timePickerMinute = Math.round(Math.min(59, Math.max(0, m)) / 5) * 5 % 60;
+  } else {
+    timePickerHour = 9;
+    timePickerMinute = 0;
+  }
+  document.getElementById('time-picker-label').textContent = label || 'Seleziona orario';
+  renderTimePickerReadout();
+  openModal('time-picker-backdrop');
+};
+
+function renderTimePickerReadout() {
+  document.getElementById('time-picker-hour').textContent = String(timePickerHour).padStart(2, '0');
+  document.getElementById('time-picker-minute').textContent = String(timePickerMinute).padStart(2, '0');
+}
+
+window.timePickerStepHour = function(delta) {
+  timePickerHour = (timePickerHour + delta + 24) % 24;
+  renderTimePickerReadout();
+};
+
+window.timePickerStepMinute = function(delta) {
+  timePickerMinute = (timePickerMinute + delta * 5 + 60) % 60;
+  renderTimePickerReadout();
+};
+
+window.confirmTimePicker = function() {
+  if (timePickerTargetId) {
+    document.getElementById(timePickerTargetId).value =
+      `${String(timePickerHour).padStart(2, '0')}:${String(timePickerMinute).padStart(2, '0')}`;
+  }
+  closeModal('time-picker-backdrop');
+  timePickerTargetId = null;
+};
+
+window.clearTimePicker = function() {
+  if (timePickerTargetId) document.getElementById(timePickerTargetId).value = '';
+  closeModal('time-picker-backdrop');
+  timePickerTargetId = null;
+};
+
+window.cancelTimePicker = function() {
+  closeModal('time-picker-backdrop');
+  timePickerTargetId = null;
+};
 
 /* ---------------- MODAL DIPENDENTE (nome, cognome, telefono, chiama/whatsapp) ---------------- */
 let editingEmpIndex = null;
@@ -4091,15 +4208,19 @@ async function drawPdfHeader(pdf, pageW, headerMarginX, topY, headerH) {
 // Disegna la sezione di un centro (barra colorata col nome + tabella turni) a partire
 // da startY, e restituisce la Y a cui è arrivata (per posizionare la sezione dopo).
 // Le dimensioni/colori replicano esattamente PRINT_STYLE (vedi costanti PDF_* sopra),
-// così il risultato è identico a "Stampa tutti"/"Stampa per dipendente".
-function drawMallSectionPdf(pdf, mallData, startY, marginX, contentW, dates) {
-  const barH = PDF_BAR_HEIGHT;
+// così il risultato è identico a "Stampa tutti"/"Stampa per dipendente" quando scale=1.
+// Il parametro scale (default 1) rimpicciolisce in proporzione barra, testo e celle:
+// usato solo come ultima risorsa da drawMallSectionsAcrossPages quando serve stringere
+// leggermente più centri in un'unica pagina (mai sotto PDF_MIN_SCALE, per restare
+// sempre leggibile).
+function drawMallSectionPdf(pdf, mallData, startY, marginX, contentW, dates, scale = 1) {
+  const barH = PDF_BAR_HEIGHT * scale;
   const [r, g, b] = hexToRgb(mallData.color);
   pdf.setFillColor(r, g, b);
-  pdf.roundedRect(marginX, startY, contentW, barH, 2.5, 2.5, 'F');
+  pdf.roundedRect(marginX, startY, contentW, barH, 2.5 * scale, 2.5 * scale, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(20);
+  pdf.setFontSize(20 * scale);
   pdf.text(mallData.mall.toUpperCase(), marginX + contentW / 2, startY + barH / 2, { align: 'center', baseline: 'middle', charSpace: 0.2 });
 
   const head = [['Turno', ...dates.map((d, i) => `${daysNames[i]}\n${String(d.getDate()).padStart(2, '0')}-${mesiAbbr[d.getMonth()]}`)]];
@@ -4125,14 +4246,15 @@ function drawMallSectionPdf(pdf, mallData, startY, marginX, contentW, dates) {
     margin: { left: marginX, right: marginX, bottom: PDF_PAGE_MARGIN },
     tableWidth: contentW,
     styles: {
-      font: 'helvetica', fontSize: 10.5, cellPadding: { top: 2.6, right: 2.1, bottom: 2.6, left: 2.1 },
+      font: 'helvetica', fontSize: 10.5 * scale,
+      cellPadding: { top: 2.6 * scale, right: 2.1 * scale, bottom: 2.6 * scale, left: 2.1 * scale },
       valign: 'middle', halign: 'center', lineColor: [229, 233, 240], lineWidth: 0.2, textColor: [30, 41, 59]
     },
     headStyles: {
-      fillColor: [248, 250, 252], textColor: [51, 65, 85], fontStyle: 'bold', fontSize: 10,
+      fillColor: [248, 250, 252], textColor: [51, 65, 85], fontStyle: 'bold', fontSize: 10 * scale,
       lineColor: [229, 233, 240], lineWidth: 0.2
     },
-    columnStyles: { 0: { cellWidth: PDF_LABEL_COL_WIDTH, minCellHeight: 12 } },
+    columnStyles: { 0: { cellWidth: PDF_LABEL_COL_WIDTH, minCellHeight: 12 * scale } },
     head,
     body,
     didParseCell: (data) => {
@@ -4146,12 +4268,12 @@ function drawMallSectionPdf(pdf, mallData, startY, marginX, contentW, dates) {
           data.cell.styles.fillColor = labelBg[turno];
           data.cell.styles.textColor = labelColors[turno];
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize = 9;
+          data.cell.styles.fontSize = 9 * scale;
           data.cell.text = []; // disegnato a mano in didDrawCell (nome turno + orario su due righe)
         } else {
           data.cell.styles.fillColor = dataBg[turno];
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize = 11;
+          data.cell.styles.fontSize = 11 * scale;
         }
       }
     },
@@ -4164,14 +4286,14 @@ function drawMallSectionPdf(pdf, mallData, startY, marginX, contentW, dates) {
         const cx = data.cell.x + data.cell.width / 2;
         const cy = data.cell.y + data.cell.height / 2;
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
+        pdf.setFontSize(9 * scale);
         pdf.setTextColor(...labelColors[turno]);
-        pdf.text(turno.toUpperCase(), cx, cy - 1.6, { align: 'center', baseline: 'middle' });
+        pdf.text(turno.toUpperCase(), cx, cy - 1.6 * scale, { align: 'center', baseline: 'middle' });
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8);
+        pdf.setFontSize(8 * scale);
         const [lr, lg, lb] = labelColors[turno];
         pdf.setTextColor(Math.round(lr + (255 - lr) * 0.25), Math.round(lg + (255 - lg) * 0.25), Math.round(lb + (255 - lb) * 0.25));
-        pdf.text(mallData.rows[data.row.index].hoursLabel, cx, cy + 2.4, { align: 'center', baseline: 'middle' });
+        pdf.text(mallData.rows[data.row.index].hoursLabel, cx, cy + 2.4 * scale, { align: 'center', baseline: 'middle' });
       }
     }
   });
@@ -4204,69 +4326,120 @@ async function createPdfDocumentWithHeader() {
 // ha davvero occupato. Necessario perché l'altezza della tabella non è fissa: varia
 // col numero di turni e con quanti nomi vanno a capo in una cella — un valore fisso
 // stimato "a occhio" sbaglia proprio nei casi con più nomi, causando lo sdoppiamento
-// di una sezione a metà tra due pagine.
-function measureMallSectionHeight(mallData, marginX, contentW, dates) {
+// di una sezione a metà tra due pagine. Lo scale (vedi drawMallSectionPdf) è passato
+// pari pari così la misura corrisponde esattamente a quanto verrà poi disegnato.
+function measureMallSectionHeight(mallData, marginX, contentW, dates, scale = 1) {
   const { jsPDF } = window.jspdf;
   const scratch = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [297, 2000] });
-  return drawMallSectionPdf(scratch, mallData, 0, marginX, contentW, dates);
+  return drawMallSectionPdf(scratch, mallData, 0, marginX, contentW, dates, scale);
 }
 
-// Disegna tutte le sezioni centro, impaginandole a gruppi: per ogni pagina calcola,
-// misurando in anticipo l'altezza reale di ciascuna sezione (measureMallSectionHeight,
-// che tiene conto di quanti turni ci sono e di quanti nomi vanno a capo — mai un valore
-// fisso stimato a occhio), quanti centri consecutivi entrano davvero nello spazio
-// rimasto. Quando c'è già abbastanza spazio usa lo stesso distacco tra sezioni di
-// "Stampa tutti"/"Stampa per dipendente" (PDF_SECTION_GAP, invariato); solo se serve
-// per far stare insieme centri che altrimenti ci starebbero comunque di misura, riduce
-// leggermente solo quello spazio tra una sezione e l'altra — mai testo, celle, tabelle
-// o colori — fino a un minimo (PDF_MIN_SECTION_GAP). Così, ad esempio, 3 centri restano
-// sempre su un'unica pagina quando la somma delle loro altezze reali lo permette.
 const PDF_MIN_SECTION_GAP = 2;
+// Non si scende mai sotto il 75% delle dimensioni originali: oltre risulterebbe
+// troppo piccolo per essere letto comodamente.
+const PDF_MIN_SCALE = 0.75;
+
+function totalHeightWithMinGap(heights) {
+  return heights.reduce((a, b) => a + b, 0) + PDF_MIN_SECTION_GAP * Math.max(0, heights.length - 1);
+}
+
+// Disegna tutte le sezioni centro. Prova prima a farle entrare TUTTE in un'unica
+// pagina, misurando in anticipo l'altezza reale di ciascuna (measureMallSectionHeight,
+// che tiene conto di quanti turni ci sono e di quanti nomi vanno a capo — mai un
+// valore fisso stimato a occhio): se serve, riduce prima solo il distacco tra le
+// sezioni (fino a PDF_MIN_SECTION_GAP) e, se non basta ancora, rimpicciolisce
+// leggermente e in proporzione l'intera sezione — barra, testo e celle insieme,
+// mai una cosa sola — fino a un minimo (PDF_MIN_SCALE) che resta comunque
+// leggibile. Solo se anche così non ci stanno tutte (troppi centri) si torna alla
+// dimensione piena e si impagina su più pagine, mettendo insieme quanti più
+// centri possibile per pagina.
 async function drawMallSectionsAcrossPages(ctx, mallsData, dates) {
   const marginX = ctx.contentMarginX;
   const contentW = ctx.pageW - ctx.contentMarginX * 2;
-  const heights = mallsData.map(m => measureMallSectionHeight(m, marginX, contentW, dates));
+  const available = ctx.pageH - PDF_PAGE_MARGIN - ctx.startY;
+  const n = mallsData.length;
+  if (n === 0) return;
 
+  let scale = 1;
+  let heights = mallsData.map(m => measureMallSectionHeight(m, marginX, contentW, dates, scale));
+
+  if (totalHeightWithMinGap(heights) > available) {
+    // Rimpicciolisce in proporzione (al massimo 3 tentativi: la misura reale, dopo
+    // il primo aggiustamento, converge quasi subito perché i font si arrotondano
+    // di poco) finché tutto non entra, senza mai scendere sotto PDF_MIN_SCALE.
+    const fixedGaps = PDF_MIN_SECTION_GAP * (n - 1);
+    for (let attempt = 0; attempt < 3 && scale > PDF_MIN_SCALE; attempt++) {
+      const tablesTotal = heights.reduce((a, b) => a + b, 0);
+      const ratio = (available - fixedGaps) / tablesTotal;
+      const nextScale = Math.max(PDF_MIN_SCALE, Math.min(1, scale * ratio));
+      if (nextScale >= scale) break;
+      scale = nextScale;
+      heights = mallsData.map(m => measureMallSectionHeight(m, marginX, contentW, dates, scale));
+      if (totalHeightWithMinGap(heights) <= available) break;
+    }
+  }
+
+  if (totalHeightWithMinGap(heights) <= available) {
+    // Tutti i centri entrano in un'unica pagina: distacco pieno se c'è posto,
+    // altrimenti ridotto quanto basta (mai sotto il minimo, già garantito sopra).
+    const tablesTotal = heights.reduce((a, b) => a + b, 0);
+    const gapsCount = n - 1;
+    const neededFull = tablesTotal + PDF_SECTION_GAP * gapsCount;
+    const gap = gapsCount === 0 ? PDF_SECTION_GAP
+      : neededFull <= available ? PDF_SECTION_GAP
+      : (available - tablesTotal) / gapsCount;
+
+    let y = ctx.startY;
+    for (let k = 0; k < n; k++) {
+      y = drawMallSectionPdf(ctx.pdf, mallsData[k], y, marginX, contentW, dates, scale);
+      if (k < n - 1) y += gap;
+    }
+    return;
+  }
+
+  // Troppi centri per stare tutti in una pagina anche al minimo di leggibilità:
+  // si torna alla dimensione piena e si impagina su più pagine, mettendo insieme
+  // quanti più centri possibile per pagina (con lo stesso criterio di distacco
+  // pieno/ridotto usato sopra).
+  heights = mallsData.map(m => measureMallSectionHeight(m, marginX, contentW, dates, 1));
   let i = 0;
   let y = ctx.startY;
   let firstPage = true;
-  while (i < mallsData.length) {
+  while (i < n) {
     if (!firstPage) {
       ctx.pdf.addPage();
       await drawPdfHeader(ctx.pdf, ctx.pageW, ctx.headerMarginX, ctx.headerTopY, ctx.headerH);
       y = ctx.startY;
     }
     firstPage = false;
-    const available = ctx.pageH - PDF_PAGE_MARGIN - y;
+    const avail = ctx.pageH - PDF_PAGE_MARGIN - y;
 
-    // Trova quanti centri consecutivi (a partire da i) entrano in questa pagina, e
-    // con quale distacco tra le sezioni: parte dal distacco pieno e lo riduce solo
-    // se necessario per farceli entrare tutti.
     let count = 1;
     let gap = PDF_SECTION_GAP;
-    for (let n = 1; i + n <= mallsData.length; n++) {
-      const tablesTotal = heights.slice(i, i + n).reduce((a, b) => a + b, 0);
-      const gapsCount = n - 1;
+    for (let m = 1; i + m <= n; m++) {
+      const tablesTotal = heights.slice(i, i + m).reduce((a, b) => a + b, 0);
+      const gapsCount = m - 1;
       const neededFull = tablesTotal + PDF_SECTION_GAP * gapsCount;
       const neededMin = tablesTotal + PDF_MIN_SECTION_GAP * gapsCount;
-      if (neededFull <= available) {
-        count = n;
+      if (neededFull <= avail) {
+        count = m;
         gap = PDF_SECTION_GAP;
-      } else if (neededMin <= available) {
-        count = n;
-        gap = gapsCount > 0 ? (available - tablesTotal) / gapsCount : PDF_SECTION_GAP;
+      } else if (neededMin <= avail) {
+        count = m;
+        gap = gapsCount > 0 ? (avail - tablesTotal) / gapsCount : PDF_SECTION_GAP;
       } else {
         break;
       }
     }
 
     for (let k = 0; k < count; k++) {
-      y = drawMallSectionPdf(ctx.pdf, mallsData[i + k], y, marginX, contentW, dates);
+      y = drawMallSectionPdf(ctx.pdf, mallsData[i + k], y, marginX, contentW, dates, 1);
       if (k < count - 1) y += gap;
     }
     i += count;
   }
 }
+
 
 
 
@@ -4564,10 +4737,8 @@ async function printAll() {
 function updateEmpPrintDropdowns() {
   let html = `<option value="">Seleziona dipendente…</option>`;
   state.employees.forEach(emp => { html += `<option value="${escapeHtml(emp)}">${escapeHtml(getEmployeeDisplayLabel(emp))}</option>`; });
-  ['emp-print-select', 'emp-print-select-preview'].forEach(id => {
-    const select = document.getElementById(id);
-    if (select) select.innerHTML = html;
-  });
+  const select = document.getElementById('emp-print-select');
+  if (select) select.innerHTML = html;
 }
 
 function triggerEmpPrint(empName) {
@@ -4585,7 +4756,6 @@ function triggerEmpPrint(empName) {
   openPdfPreview(html, `Turni di ${getEmployeeDisplayLabel(empName)}`, 'employee');
 
   document.getElementById('emp-print-select').value = '';
-  document.getElementById('emp-print-select-preview').value = '';
 }
 
 /* =====================================================================================
@@ -5271,6 +5441,7 @@ async function initAppAfterAuth() {
         else if (id === 'emp-edit-backdrop' && typeof closeEmployeeModal === 'function') closeEmployeeModal();
         else if (id === 'emp-shifts-backdrop' && typeof closeEmployeeShiftsModal === 'function') closeEmployeeShiftsModal();
         else if (id === 'hours-backdrop' && typeof closeHoursModal === 'function') closeHoursModal();
+        else if (id === 'time-picker-backdrop' && typeof cancelTimePicker === 'function') cancelTimePicker();
         else if (typeof closeModal === 'function') closeModal(id);
         return id;
       }
