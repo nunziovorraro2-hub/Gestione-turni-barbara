@@ -1,0 +1,13 @@
+# Netlify legge questo file e applica queste intestazioni alle risposte HTTP.
+#
+# sw.js e manifest.json NON devono mai restare in cache a lungo: se il browser
+# (o un CDN intermedio) decidesse di tenerne una copia vecchia, l'aggiornamento
+# automatico della PWA (vedi index.html e sw.js) non si accorgerebbe mai di una
+# nuova versione pubblicata su GitHub, anche dopo aver incrementato CACHE_NAME.
+# "no-cache" non vuol dire "non salvare mai": vuol dire che il browser deve
+# comunque richiedere conferma al server ad ogni utilizzo prima di riusarla.
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache

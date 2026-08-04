@@ -6,7 +6,12 @@
    si apriva senza stile e senza possibilita' di generare PDF.
    ===================================================================================== */
 
-const CACHE_NAME = 'shiftmanager-pro-v4';
+// Ad ogni nuova versione pubblicata su GitHub va incrementato questo numero
+// (v5 -> v6 -> ...): è quello che dice al browser "questo file sw.js è cambiato",
+// fa scattare l'evento 'install' con la nuova cache, e poi 'activate' (qui sotto)
+// cancella quella vecchia. Se non lo si incrementa, il browser continua a vedere
+// lo stesso identico file e non installa mai nulla di nuovo.
+const CACHE_NAME = 'shiftmanager-pro-v5';
 
 const APP_SHELL = [
   './',

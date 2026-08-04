@@ -5498,12 +5498,45 @@ async function initAppAfterAuth() {
   window.addEventListener('load', lockPortraitOrientation);
 </script>
 
-<!-- ===================== PWA: registrazione Service Worker ===================== -->
+<!-- ===================== PWA: registrazione Service Worker + aggiornamento automatico =====================
+     sw.js fa già la parte pesante: ad ogni release incremento CACHE_NAME al suo interno
+     e lui da solo installa la nuova cache, ripulisce quella vecchia (evento 'activate')
+     e prende subito il controllo della pagina (skipWaiting + clients.claim). Il pezzo
+     che mancava è qui: una scheda già aperta continua a mostrare l'HTML/JS vecchio
+     finché non viene ricaricata — da qui la sensazione di dover disinstallare e
+     reinstallare l'app ad ogni aggiornamento. Questo script:
+     1) registra il Service Worker;
+     2) gli chiede di ricontrollare se su Netlify c'è una versione più recente non
+        appena la pagina si carica, quando torna in primo piano, e poi ogni ora;
+     3) quando il nuovo Service Worker prende il controllo, ricarica la pagina una
+        sola volta: da quel momento l'ultima versione è quella mostrata, senza
+        alcuna azione manuale da parte di chi usa l'app. -->
 <script>
   if ('serviceWorker' in navigator) {
+    let refreshingAfterUpdate = false;
+    // Scatta quando il nuovo Service Worker prende il controllo della pagina (dopo
+    // self.clients.claim() in sw.js): ricarica una sola volta, mai in loop.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshingAfterUpdate) return;
+      refreshingAfterUpdate = true;
+      window.location.reload();
+    });
+
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
-        .then((reg) => console.log('Service Worker registrato con successo:', reg.scope))
+        .then((reg) => {
+          console.log('Service Worker registrato con successo:', reg.scope);
+
+          // Ricontrolla se sw.js è cambiato: subito all'avvio (utile se l'app era
+          // rimasta aperta/in background da prima dell'ultimo aggiornamento
+          // pubblicato), ogni volta che l'app torna in primo piano, e comunque
+          // ogni ora se restasse aperta più a lungo.
+          reg.update();
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') reg.update();
+          });
+          setInterval(() => reg.update(), 60 * 60 * 1000);
+        })
         .catch((err) => console.error('Registrazione Service Worker fallita:', err));
     });
   }
