@@ -5373,11 +5373,11 @@ async function initAppAfterAuth() {
   // 1) Caricamento locale (IndexedDB) — l'app è utilizzabile da subito, anche offline,
   // senza aspettare la rete.
   const restored = await loadState();
-  if (!state.weekStart) {
-    initNextMonday();
-  } else {
-    state.weekStart = new Date(state.weekStart);
-  }
+  // La settimana mostrata all'apertura è sempre quella successiva a quella attuale
+  // (es. oggi martedì 4 agosto → si apre sulla settimana 10-16 agosto), non l'ultima
+  // rimasta salvata da una sessione precedente: altrimenti, riaprendo l'app giorni
+  // dopo l'ultima visita, si rischiava di ritrovarsi su una settimana ormai passata.
+  initNextMonday();
   renderAll();
   switchNavActive(state.activeView || 'turni');
   navigate(state.activeView || 'turni');
