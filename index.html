@@ -133,7 +133,7 @@
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col overflow-hidden antialiased">
 
   <!-- ============================================================ LOGIN ============================================================ -->
-  <div id="login-screen" class="h-screen w-screen flex items-center justify-center bg-slate-50 px-4">
+  <div id="login-screen" class="h-screen w-screen relative flex items-center justify-center bg-slate-50 px-4">
     <form id="login-form" class="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-slate-200 p-7">
       <div class="flex flex-col items-center mb-6">
         <div class="flex items-center justify-center gap-4 mb-3">
@@ -169,8 +169,9 @@
         Non hai un account? Registrati
       </button>
     </form>
-    <p class="text-center text-[11px] text-slate-400 mt-3" id="app-version-label-login"></p>
+    <p class="absolute left-1/2 -translate-x-1/2 bottom-3 text-[9px] text-slate-300" id="app-version-label-login" style="padding-bottom: var(--safe-b);"></p>
   </div>
+
 
   <!-- ===================================================== REGISTRAZIONE: nuovo account ===================================================== -->
   <div id="signup-screen" class="hidden h-screen w-screen flex items-center justify-center bg-slate-50 px-4">
@@ -5498,45 +5499,12 @@ async function initAppAfterAuth() {
   window.addEventListener('load', lockPortraitOrientation);
 </script>
 
-<!-- ===================== PWA: registrazione Service Worker + aggiornamento automatico =====================
-     sw.js fa già la parte pesante: ad ogni release incremento CACHE_NAME al suo interno
-     e lui da solo installa la nuova cache, ripulisce quella vecchia (evento 'activate')
-     e prende subito il controllo della pagina (skipWaiting + clients.claim). Il pezzo
-     che mancava è qui: una scheda già aperta continua a mostrare l'HTML/JS vecchio
-     finché non viene ricaricata — da qui la sensazione di dover disinstallare e
-     reinstallare l'app ad ogni aggiornamento. Questo script:
-     1) registra il Service Worker;
-     2) gli chiede di ricontrollare se su Netlify c'è una versione più recente non
-        appena la pagina si carica, quando torna in primo piano, e poi ogni ora;
-     3) quando il nuovo Service Worker prende il controllo, ricarica la pagina una
-        sola volta: da quel momento l'ultima versione è quella mostrata, senza
-        alcuna azione manuale da parte di chi usa l'app. -->
+<!-- ===================== PWA: registrazione Service Worker ===================== -->
 <script>
   if ('serviceWorker' in navigator) {
-    let refreshingAfterUpdate = false;
-    // Scatta quando il nuovo Service Worker prende il controllo della pagina (dopo
-    // self.clients.claim() in sw.js): ricarica una sola volta, mai in loop.
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshingAfterUpdate) return;
-      refreshingAfterUpdate = true;
-      window.location.reload();
-    });
-
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
-        .then((reg) => {
-          console.log('Service Worker registrato con successo:', reg.scope);
-
-          // Ricontrolla se sw.js è cambiato: subito all'avvio (utile se l'app era
-          // rimasta aperta/in background da prima dell'ultimo aggiornamento
-          // pubblicato), ogni volta che l'app torna in primo piano, e comunque
-          // ogni ora se restasse aperta più a lungo.
-          reg.update();
-          document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') reg.update();
-          });
-          setInterval(() => reg.update(), 60 * 60 * 1000);
-        })
+        .then((reg) => console.log('Service Worker registrato con successo:', reg.scope))
         .catch((err) => console.error('Registrazione Service Worker fallita:', err));
     });
   }
