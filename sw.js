@@ -11,7 +11,7 @@
 // fa scattare l'evento 'install' con la nuova cache, e poi 'activate' (qui sotto)
 // cancella quella vecchia. Se non lo si incrementa, il browser continua a vedere
 // lo stesso identico file e non installa mai nulla di nuovo.
-const CACHE_NAME = 'shiftmanager-pro-v5';
+const CACHE_NAME = 'shiftmanager-pro-v6';
 
 const APP_SHELL = [
   './',
