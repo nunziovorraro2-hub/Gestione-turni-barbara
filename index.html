@@ -101,6 +101,11 @@
   @keyframes toastIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
 
   .bottom-nav-item.active i{ transform:translateY(-1px); }
+  .richieste-filter-btn.active{ background:#2f5fe0; color:#fff; }
+  .richieste-badge{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .richieste-badge-attesa{ background:#fef3c7; color:#92400e; }
+  .richieste-badge-approvata{ background:#dcfce7; color:#166534; }
+  .richieste-badge-rifiutata{ background:#fee2e2; color:#991b1b; }
 
   /* ===================== ANIMAZIONI DI CHIUSURA MODALI ===================== */
   /* L'apertura dei modali sfrutta le animazioni fade-in/pop-in già presenti
@@ -329,6 +334,10 @@
           <a href="#" onclick="navigate('centri');return false;" id="nav-centri" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-semibold text-sm transition-colors border-l-4">
             <i class="fa-solid fa-shop w-5 text-center"></i> Gestione Centri
           </a>
+          <a href="#" onclick="navigate('richieste');return false;" id="nav-richieste" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-semibold text-sm transition-colors border-l-4">
+            <i class="fa-solid fa-envelope-open-text w-5 text-center"></i> Gestione Richieste
+            <span id="richieste-badge-desktop" class="hidden ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">0</span>
+          </a>
           <a href="#" onclick="navigate('impostazioni');return false;" id="nav-impostazioni" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-lg font-semibold text-sm transition-colors border-l-4">
             <i class="fa-solid fa-sliders w-5 text-center"></i> Impostazioni
           </a>
@@ -471,6 +480,39 @@
             <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
               <ul id="mall-list" class="divide-y divide-slate-200 lg:divide-y-0 lg:grid lg:grid-cols-2 lg:gap-2 lg:p-2"></ul>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------------- VISTA: GESTIONE RICHIESTE ---------------- -->
+      <section id="view-richieste" class="view-section hidden max-w-3xl lg:max-w-5xl mx-auto">
+        <div class="lg:grid lg:grid-cols-[260px_1fr] lg:gap-6 lg:items-start">
+
+          <!-- Colonna info: solo desktop -->
+          <div class="hidden lg:block lg:sticky lg:top-0">
+            <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-lg mb-3"><i class="fa-solid fa-envelope-open-text"></i></div>
+            <h2 class="text-xl font-display font-bold text-slate-800 mb-1.5">Gestione Richieste</h2>
+            <p class="text-sm text-slate-400 leading-relaxed">Richieste di ferie e cambio turno inviate dai dipendenti, con suggerimento su come coprire il turno</p>
+          </div>
+
+          <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-soft border border-slate-200">
+            <div class="flex items-center justify-between gap-3 mb-6">
+              <div class="flex items-center gap-3 lg:hidden">
+                <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-lg"><i class="fa-solid fa-envelope-open-text"></i></div>
+                <div>
+                  <h2 class="text-lg font-display font-bold text-slate-800">Gestione Richieste</h2>
+                  <p class="text-xs text-slate-400">Ferie e cambi turno dei dipendenti</p>
+                </div>
+              </div>
+              <button onclick="fetchAdminRequests(true)" aria-label="Aggiorna" class="ml-auto w-10 h-10 shrink-0 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center text-slate-500 transition-colors">
+                <i class="fa-solid fa-arrows-rotate"></i>
+              </button>
+            </div>
+            <div class="flex gap-2 mb-5 bg-slate-100 rounded-xl p-1 w-fit">
+              <button onclick="setRichiesteFilter('in_attesa')" id="richieste-filter-in_attesa" class="richieste-filter-btn px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 transition-colors">In attesa</button>
+              <button onclick="setRichiesteFilter('tutte')" id="richieste-filter-tutte" class="richieste-filter-btn px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 transition-colors">Tutte</button>
+            </div>
+            <div id="richieste-admin-list"></div>
           </div>
         </div>
       </section>
@@ -657,6 +699,10 @@
     </a>
     <a href="#" onclick="navigate('centri');return false;" id="bnav-centri" class="bottom-nav-item flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-slate-400">
       <i class="fa-solid fa-shop text-lg"></i><span class="text-[10px] font-semibold">Centri</span>
+    </a>
+    <a href="#" onclick="navigate('richieste');return false;" id="bnav-richieste" class="bottom-nav-item relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 text-slate-400">
+      <i class="fa-solid fa-envelope-open-text text-lg"></i><span class="text-[10px] font-semibold">Richieste</span>
+      <span id="richieste-badge-mobile" class="hidden absolute top-1.5 right-[calc(50%-20px)] bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">0</span>
     </a>
   </nav>
 
@@ -2221,6 +2267,7 @@ function navigate(viewId, opts) {
   if (viewId === 'centri') renderCentri();
   if (viewId === 'impostazioni') renderImpostazioni();
   if (viewId === 'storico') renderStorico();
+  if (viewId === 'richieste') fetchAdminRequests();
 
   document.getElementById('main-content').scrollTo({ top: 0 });
 
@@ -5367,6 +5414,237 @@ window.clearAllData = async function() {
 window.addEventListener('online', () => { if (supabaseClient) pushStateToSupabase(); });
 window.addEventListener('offline', () => setCloudSyncStatus('offline'));
 
+/* =====================================================================================
+   GESTIONE RICHIESTE (ferie / cambio turno inviate dai dipendenti tramite
+   dipendenti.html). Lette e aggiornate direttamente su Supabase: non fanno parte
+   dello "stato" sincronizzato da pushStateToSupabase/pullStateFromSupabase, sono
+   un flusso a parte più semplice da tenere separato da quel meccanismo.
+   ===================================================================================== */
+let adminRequests = [];
+let richiesteFilter = 'in_attesa';
+
+async function fetchAdminRequests(showSpinnerToast) {
+  if (!supabaseClient) return;
+  if (showSpinnerToast) showToast('Aggiornamento richieste...', 'info');
+  const { data, error } = await supabaseClient
+    .from('richieste')
+    .select('*, employees!richieste_employee_id_fkey(full_name), malls(name), collega:employees!richieste_collega_proposto_id_fkey(full_name)')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Impossibile caricare le richieste:', error);
+    if (showSpinnerToast) showToast('Impossibile aggiornare le richieste', 'error');
+    return;
+  }
+  adminRequests = data || [];
+  updateRichiesteBadges();
+  if (state.activeView === 'richieste') renderRichiesteAdmin();
+}
+
+function updateRichiesteBadges() {
+  const count = adminRequests.filter(r => r.stato === 'in_attesa').length;
+  [document.getElementById('richieste-badge-desktop'), document.getElementById('richieste-badge-mobile')].forEach(el => {
+    if (!el) return;
+    el.textContent = count;
+    el.classList.toggle('hidden', count === 0);
+  });
+}
+
+function setRichiesteFilter(f) {
+  richiesteFilter = f;
+  document.querySelectorAll('.richieste-filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`richieste-filter-${f}`).classList.add('active');
+  renderRichiesteAdmin();
+}
+
+function richiesteStatusLabel(stato) {
+  return { in_attesa: ['In attesa', 'richieste-badge-attesa'], approvata: ['Approvata', 'richieste-badge-approvata'], rifiutata: ['Rifiutata', 'richieste-badge-rifiutata'] }[stato] || [stato, ''];
+}
+function fmtDateIt(dateStr) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// Cerca, tra i candidati disponibili, chi potrebbe coprire il turno rimasto
+// scoperto da una richiesta. Regole (le stesse già in vigore per l'assegnazione
+// manuale): non deve avere già un turno quel giorno, non deve superare i giorni
+// lavorativi massimi nella settimana di quel giorno. A parità di requisiti si
+// preferisce chi ha meno turni assegnati nella settimana (per bilanciare il
+// carico), e il collega eventualmente proposto dal dipendente ha la priorità
+// se rispetta comunque le regole.
+function computeRequestSuggestion(req) {
+  const dateStr = req.data_da;
+  const requesterName = req.employees?.full_name;
+  const weekStart = getMondayOfDate(dateStr);
+  const weekDatesStr = getDatesForWeekStart(weekStart).map(formatHtmlDate);
+
+  const countShiftsInWeek = (empName) => {
+    let n = 0;
+    weekDatesStr.forEach(d => {
+      getMallsForDate(d).forEach(m => ['Mattina', 'Pomeriggio'].forEach(t => {
+        if (getShiftData(d, m, t).includes(empName)) n++;
+      }));
+    });
+    return n;
+  };
+  const isAvailable = (empName) => {
+    if (empName === requesterName) return false;
+    for (const m of getMallsForDate(dateStr)) {
+      for (const t of ['Mattina', 'Pomeriggio']) {
+        if (getShiftData(dateStr, m, t).includes(empName)) return false; // già impegnato quel giorno
+      }
+    }
+    if (weekDatesStr.includes(dateStr)) {
+      const workedDays = new Set();
+      weekDatesStr.forEach(d => {
+        if (d === dateStr) return;
+        getMallsForDate(d).forEach(m => ['Mattina', 'Pomeriggio'].forEach(t => {
+          if (getShiftData(d, m, t).includes(empName)) workedDays.add(d);
+        }));
+      });
+      if (workedDays.size >= (state.maxWorkDaysPerWeek || 5)) return false;
+    }
+    return true;
+  };
+
+  const proposedName = req.collega?.full_name;
+  if (proposedName && isAvailable(proposedName)) {
+    return { name: proposedName, reason: 'Collega proposto dal dipendente, disponibile quel giorno' };
+  }
+
+  const candidates = state.employees.filter(isAvailable);
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => countShiftsInWeek(a) - countShiftsInWeek(b) || compareEmployeeNames(a, b));
+  return { name: candidates[0], reason: 'Meno turni assegnati questa settimana tra i disponibili' };
+}
+
+function getMondayOfDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dow = d.getDay();
+  const diff = (dow === 0 ? -6 : 1) - dow;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function goToDateInTurni(dateStr) {
+  const monday = getMondayOfDate(dateStr);
+  state.weekStart = monday;
+  const dayIndex = getDatesForWeekStart(monday).findIndex(d => formatHtmlDate(d) === dateStr);
+  state.mobileDayIndex = dayIndex === -1 ? 0 : dayIndex;
+  navigate('turni');
+}
+
+// Sostituisce, nello slot del turno indicato dalla richiesta, il nome del
+// richiedente con quello del dipendente suggerito (o scelto manualmente).
+// Se il richiedente non risulta più in quello slot (es. turni nel frattempo
+// modificati a mano) lo slot viene comunque occupato se libero, altrimenti
+// l'operazione viene annullata con un avviso.
+function applySlotReplacement(dateStr, mallName, turnoCap, requesterName, newName) {
+  const key = `${dateStr}|${mallName}|${turnoCap}`;
+  if (!state.shifts[key]) state.shifts[key] = ['', ''];
+  const slot = state.shifts[key];
+  let idx = slot.indexOf(requesterName);
+  if (idx === -1) idx = slot.indexOf('');
+  if (idx === -1) { showToast('Turno già pieno, modifica manualmente', 'error'); return false; }
+  slot[idx] = newName;
+  return true;
+}
+
+async function resolveRequest(req, stato, employeeName, notaAdmin) {
+  if (stato === 'approvata' && employeeName) {
+    const turnoCap = req.turno ? req.turno.charAt(0).toUpperCase() + req.turno.slice(1) : null;
+    if (req.tipo === 'cambio') {
+      const ok = applySlotReplacement(req.data_da, req.malls?.name, turnoCap, req.employees?.full_name, employeeName);
+      if (!ok) return;
+    } else {
+      // Ferie: sostituisce il richiedente in ogni turno assegnato nell'intervallo di date.
+      const start = new Date(req.data_da + 'T00:00:00');
+      const end = new Date((req.data_a || req.data_da) + 'T00:00:00');
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dStr = formatHtmlDate(d);
+        getMallsForDate(dStr).forEach(m => ['Mattina', 'Pomeriggio'].forEach(t => {
+          if (getShiftData(dStr, m, t).includes(req.employees?.full_name)) {
+            applySlotReplacement(dStr, m, t, req.employees?.full_name, employeeName);
+          }
+        }));
+      }
+    }
+    renderTurniViews();
+    scheduleAutosave();
+  }
+
+  const { error } = await supabaseClient.from('richieste').update({
+    stato, nota_admin: notaAdmin || null, resolved_at: new Date().toISOString()
+  }).eq('id', req.id);
+  if (error) { showToast('Impossibile aggiornare la richiesta', 'error'); return; }
+  showToast(stato === 'approvata' ? 'Richiesta approvata' : 'Richiesta rifiutata', 'success');
+  await fetchAdminRequests();
+}
+
+function rejectRequestPrompt(reqId) {
+  const req = adminRequests.find(r => r.id === reqId);
+  if (!req) return;
+  const nota = prompt('Nota per il dipendente (opzionale):', '') || '';
+  resolveRequest(req, 'rifiutata', null, nota.trim() || null);
+}
+
+function renderRichiesteAdmin() {
+  const el = document.getElementById('richieste-admin-list');
+  if (!el) return;
+  document.querySelectorAll('.richieste-filter-btn').forEach(b => b.classList.toggle('active', b.id === `richieste-filter-${richiesteFilter}`));
+
+  const list = richiesteFilter === 'in_attesa' ? adminRequests.filter(r => r.stato === 'in_attesa') : adminRequests;
+  if (list.length === 0) {
+    el.innerHTML = `<p class="text-sm text-slate-400 text-center py-10">${richiesteFilter === 'in_attesa' ? 'Nessuna richiesta in attesa.' : 'Nessuna richiesta.'}</p>`;
+    return;
+  }
+
+  el.innerHTML = list.map(r => {
+    const [label, cls] = richiesteStatusLabel(r.stato);
+    const nome = getEmployeeDisplayLabel(r.employees?.full_name || '');
+    const titolo = r.tipo === 'ferie' ? 'Ferie' : 'Cambio turno';
+    const quando = r.tipo === 'ferie'
+      ? (r.data_a && r.data_a !== r.data_da ? `Dal ${fmtDateIt(r.data_da)} al ${fmtDateIt(r.data_a)}` : fmtDateIt(r.data_da))
+      : `${fmtDateIt(r.data_da)} · ${r.malls?.name || ''} · ${r.turno ? r.turno.charAt(0).toUpperCase() + r.turno.slice(1) : ''}`;
+    const inserita = new Date(r.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    let suggestionHtml = '';
+    if (r.stato === 'in_attesa') {
+      const sugg = computeRequestSuggestion(r);
+      suggestionHtml = sugg
+        ? `<div class="mt-3 bg-brand-50 border border-brand-100 rounded-xl p-3">
+             <p class="text-xs font-semibold text-brand-700 mb-0.5"><i class="fa-solid fa-lightbulb mr-1"></i>Suggerimento: ${getEmployeeDisplayLabel(sugg.name)}</p>
+             <p class="text-[11px] text-brand-600/80 mb-2.5">${sugg.reason}</p>
+             <div class="flex flex-wrap gap-2">
+               <button onclick="resolveRequest(adminRequests.find(x=>x.id==='${r.id}'), 'approvata', '${sugg.name.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">Applica suggerimento</button>
+               <button onclick="goToDateInTurni('${r.data_da}')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs font-semibold">Modifica manualmente</button>
+               <button onclick="rejectRequestPrompt('${r.id}')" class="px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-500 text-xs font-semibold">Rifiuta</button>
+             </div>
+           </div>`
+        : `<div class="mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+             <p class="text-xs font-semibold text-amber-700 mb-2.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Nessun dipendente disponibile trovato automaticamente per coprire il turno.</p>
+             <div class="flex flex-wrap gap-2">
+               <button onclick="goToDateInTurni('${r.data_da}')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs font-semibold">Modifica manualmente</button>
+               <button onclick="rejectRequestPrompt('${r.id}')" class="px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-500 text-xs font-semibold">Rifiuta</button>
+             </div>
+           </div>`;
+    }
+
+    return `
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-3">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <p class="font-semibold text-sm text-slate-800">${nome} · <span class="text-slate-500 font-normal">${titolo}</span></p>
+          <p class="text-xs text-slate-500 mt-0.5">${quando}</p>
+          <p class="text-[11px] text-slate-400 mt-1">Richiesta inserita il ${inserita}</p>
+          ${r.nota ? `<p class="text-xs text-slate-600 mt-2 italic">"${r.nota}"</p>` : ''}
+          ${r.nota_admin ? `<p class="text-xs text-slate-600 mt-2"><i class="fa-solid fa-reply mr-1"></i>${r.nota_admin}</p>` : ''}
+        </div>
+        <span class="richieste-badge ${cls} shrink-0">${label}</span>
+      </div>
+      ${suggestionHtml}
+    </div>`;
+  }).join('');
+}
+
 async function initAppAfterAuth() {
   if (appInitialized) return;
   appInitialized = true;
@@ -5406,6 +5684,10 @@ async function initAppAfterAuth() {
   } else {
     setCloudSyncStatus(supabaseClient ? 'offline' : 'idle');
   }
+
+  // 3) Conteggio richieste in attesa per il badge nel menu (indipendente dallo
+  // stato sincronizzato sopra, vedi sezione GESTIONE RICHIESTE).
+  fetchAdminRequests();
 }
 </script>
 
