@@ -492,7 +492,7 @@
           <div class="hidden lg:block lg:sticky lg:top-0">
             <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-lg mb-3"><i class="fa-solid fa-envelope-open-text"></i></div>
             <h2 class="text-xl font-display font-bold text-slate-800 mb-1.5">Gestione Richieste</h2>
-            <p class="text-sm text-slate-400 leading-relaxed">Richieste di ferie e cambio turno inviate dai dipendenti, con suggerimento su come coprire il turno</p>
+            <p class="text-sm text-slate-400 leading-relaxed">Richieste di ferie e cambio turno inviate dai dipendenti</p>
           </div>
 
           <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-soft border border-slate-200">
@@ -982,6 +982,11 @@
               </a>
             </div>
             <p class="text-[10.5px] text-slate-400 mt-1.5">Il tasto verde chiama direttamente; WhatsApp apre la chat, da cui puoi avviare la chiamata con un tocco.</p>
+          </div>
+          <div>
+            <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Centri in cui può lavorare</label>
+            <div id="emp-edit-malls-list" class="space-y-1.5"></div>
+            <p class="text-[10.5px] text-slate-400 mt-1.5">Usato per suggerire chi coprire nei cambi turno e nelle ferie: lascia tutti i centri selezionati se il dipendente può lavorare ovunque, altrimenti deseleziona quelli non adatti.</p>
           </div>
         </div>
         <div class="flex gap-2 justify-between items-center mt-5">
@@ -1560,7 +1565,8 @@ async function pushStateToSupabase() {
     // 2) Dipendenti (upsert per nome completo)
     const empRows = state.employees.map(full_name => ({
       full_name,
-      phone: state.employeePhones[full_name] || null
+      phone: state.employeePhones[full_name] || null,
+      centri_abilitati: (state.employeeMalls[full_name] && state.employeeMalls[full_name].length) ? state.employeeMalls[full_name] : null
     }));
     if (empRows.length > 0) {
       const { error } = await supabaseClient.from('employees').upsert(empRows, { onConflict: 'full_name' });
@@ -1636,7 +1642,11 @@ async function pullStateFromSupabase() {
 
     const employees = (empsRes.data || []).map(e => e.full_name).sort(compareEmployeeNames);
     const employeePhones = {};
-    (empsRes.data || []).forEach(e => { if (e.phone) employeePhones[e.full_name] = e.phone; });
+    const employeeMalls = {};
+    (empsRes.data || []).forEach(e => {
+      if (e.phone) employeePhones[e.full_name] = e.phone;
+      if (e.centri_abilitati && e.centri_abilitati.length) employeeMalls[e.full_name] = e.centri_abilitati;
+    });
 
     const shifts = {};
     (shiftsRes.data || []).forEach(row => {
@@ -1652,7 +1662,7 @@ async function pullStateFromSupabase() {
     const settings = settingsRes && !settingsRes.error ? settingsRes.data : null;
 
     return {
-      malls, mallColors, mallHours, employees, employeePhones, shifts,
+      malls, mallColors, mallHours, employees, employeePhones, employeeMalls, shifts,
       maxWorkDaysPerWeek: settings?.max_work_days_per_week,
       settingsPinHash: settings?.settings_pin_hash
     };
@@ -1676,6 +1686,11 @@ const defaultState = () => ({
   mobileDayIndex: 0,
   employees: ['CASSANO','COSTA',EMP_NAME_SEP+'DE VITA','GANAPINI','GIAMBERDUCA','PRETOLANI','PUTRINO','RUBINO','SERRA','UZZO','ZAMBONINI'].sort(compareEmployeeNames),
   employeePhones: {},
+  // Centri in cui ciascun dipendente può lavorare, usato per filtrare i suggerimenti
+  // di copertura in Gestione Richieste. Array vuoto o chiave assente = nessuna
+  // restrizione (può lavorare in tutti i centri), così i dipendenti già esistenti
+  // restano disponibili ovunque finché non si imposta esplicitamente una restrizione.
+  employeeMalls: {},
   malls: ['TERRAZZE','MARE MONTI','CENTRO 3'],
   mallHours: {
     'TERRAZZE': { mattina:{start:'09:30',end:'14:00'}, pomeriggio:{start:'14:30',end:'19:30'} },
@@ -1988,6 +2003,10 @@ function renameEmployee(oldName, newName) {
     state.employeePhones[newName] = state.employeePhones[oldName];
     delete state.employeePhones[oldName];
   }
+  if (state.employeeMalls[oldName] !== undefined) {
+    state.employeeMalls[newName] = state.employeeMalls[oldName];
+    delete state.employeeMalls[oldName];
+  }
 
   Object.keys(state.shifts).forEach(key => {
     const arr = state.shifts[key];
@@ -2011,6 +2030,12 @@ function renameMall(oldName, newName) {
     state.mallColors[newName] = state.mallColors[oldName];
     delete state.mallColors[oldName];
   }
+
+  Object.keys(state.employeeMalls).forEach(empName => {
+    const arr = state.employeeMalls[empName];
+    const i = arr.indexOf(oldName);
+    if (i !== -1) arr[i] = newName;
+  });
 
   const renamedShifts = {};
   Object.keys(state.shifts).forEach(key => {
@@ -3583,6 +3608,28 @@ window.openEmployeeCard = function(idx) {
   openModal('emp-edit-backdrop');
 };
 
+// Disegna le checkbox dei centri nella scheda dipendente. `selected` è l'array
+// salvato per quel dipendente: se undefined (mai impostato) tutte le caselle
+// partono selezionate (= nessuna restrizione, comportamento di sempre); se è
+// un array (anche vuoto) riflette esattamente quello che è stato salvato.
+function renderEmpMallsCheckboxes(selected) {
+  const wrap = document.getElementById('emp-edit-malls-list');
+  const noRestriction = selected === undefined;
+  if (state.malls.length === 0) {
+    wrap.innerHTML = `<p class="text-xs text-slate-400">Nessun centro configurato.</p>`;
+    return;
+  }
+  wrap.innerHTML = state.malls.map(mall => {
+    const checked = noRestriction || selected.includes(mall);
+    const id = `emp-edit-mall-${mall.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    return `
+    <label for="${id}" class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer text-sm font-medium text-slate-700">
+      <input type="checkbox" id="${id}" value="${escapeHtml(mall)}" class="emp-edit-mall-checkbox w-4 h-4 rounded accent-brand-600" ${checked ? 'checked' : ''}>
+      ${escapeHtml(mall)}
+    </label>`;
+  }).join('');
+}
+
 // Passa dalla vista bigliettino alla modalità modifica (icona matita).
 window.enterEmpEditMode = function() {
   if (editingEmpIndex === null) return;
@@ -3592,6 +3639,7 @@ window.enterEmpEditMode = function() {
   document.getElementById('emp-edit-firstname').value = nome;
   document.getElementById('emp-edit-lastname').value = cognome;
   document.getElementById('emp-edit-phone').value = state.employeePhones[name] || '';
+  renderEmpMallsCheckboxes(state.employeeMalls[name]);
   refreshEmpModalCallButtons();
   setEmpEditModeUI(false);
   document.getElementById('emp-card-view').classList.add('hidden');
@@ -3606,6 +3654,7 @@ window.openNewEmployeeCard = function() {
   document.getElementById('emp-edit-firstname').value = '';
   document.getElementById('emp-edit-lastname').value = '';
   document.getElementById('emp-edit-phone').value = '';
+  renderEmpMallsCheckboxes(undefined);
   refreshEmpModalCallButtons();
   setEmpEditModeUI(true);
   document.getElementById('emp-card-view').classList.add('hidden');
@@ -3671,6 +3720,7 @@ function saveEmployeeModal() {
   // prima: la prima parola è sempre il nome, quindi non serve marcatore.
   const newName = nome ? `${nome} ${cognome}`.trim() : `${cognome ? EMP_NAME_SEP + cognome : ''}`;
   const phone = document.getElementById('emp-edit-phone').value.trim();
+  const selectedMalls = Array.from(document.querySelectorAll('.emp-edit-mall-checkbox:checked')).map(cb => cb.value);
 
   if (!newName) { showToast('Inserisci almeno il cognome', 'error'); return; }
 
@@ -3679,6 +3729,7 @@ function saveEmployeeModal() {
     state.employees.push(newName);
     state.employees.sort(compareEmployeeNames);
     if (phone) state.employeePhones[newName] = phone;
+    state.employeeMalls[newName] = selectedMalls;
     isNewEmployee = false;
     renderAll();
     scheduleAutosave();
@@ -3698,6 +3749,7 @@ function saveEmployeeModal() {
 
   if (newName !== oldName) renameEmployee(oldName, newName);
   if (phone) state.employeePhones[newName] = phone; else delete state.employeePhones[newName];
+  state.employeeMalls[newName] = selectedMalls;
 
   const updatedIdx = state.employees.indexOf(newName);
   renderAll();
@@ -5428,7 +5480,7 @@ async function fetchAdminRequests(showSpinnerToast) {
   if (showSpinnerToast) showToast('Aggiornamento richieste...', 'info');
   const { data, error } = await supabaseClient
     .from('richieste')
-    .select('*, employees!richieste_employee_id_fkey(full_name), malls(name), collega:employees!richieste_collega_proposto_id_fkey(full_name)')
+    .select('*, employees!richieste_employee_id_fkey(full_name), malls!richieste_mall_id_fkey(name), mall_desiderato:malls!richieste_mall_desiderato_id_fkey(name)')
     .order('created_at', { ascending: false });
   if (error) {
     console.error('Impossibile caricare le richieste:', error);
@@ -5463,16 +5515,40 @@ function fmtDateIt(dateStr) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// Cerca, tra i candidati disponibili, chi potrebbe coprire il turno rimasto
-// scoperto da una richiesta. Regole (le stesse già in vigore per l'assegnazione
-// manuale): non deve avere già un turno quel giorno, non deve superare i giorni
-// lavorativi massimi nella settimana di quel giorno. A parità di requisiti si
-// preferisce chi ha meno turni assegnati nella settimana (per bilanciare il
-// carico), e il collega eventualmente proposto dal dipendente ha la priorità
-// se rispetta comunque le regole.
-function computeRequestSuggestion(req) {
-  const dateStr = req.data_da;
-  const requesterName = req.employees?.full_name;
+function getMondayOfDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dow = d.getDay();
+  const diff = (dow === 0 ? -6 : 1) - dow;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function goToDateInTurni(dateStr) {
+  const monday = getMondayOfDate(dateStr);
+  state.weekStart = monday;
+  const dayIndex = getDatesForWeekStart(monday).findIndex(d => formatHtmlDate(d) === dateStr);
+  state.mobileDayIndex = dayIndex === -1 ? 0 : dayIndex;
+  navigate('turni');
+}
+
+// Toglie il dipendente dallo slot indicato (se presente); usata per liberare i
+// turni di chi va in ferie o cambia turno.
+function clearEmployeeFromSlot(dateStr, mallName, turnoCap, empName) {
+  const key = `${dateStr}|${mallName}|${turnoCap}`;
+  const slot = state.shifts[key];
+  if (!slot) return;
+  const idx = slot.indexOf(empName);
+  if (idx !== -1) slot[idx] = '';
+}
+
+// Cerca chi potrebbe coprire uno slot rimasto scoperto (per un cambio turno o
+// per un giorno di ferie): esclude il richiedente, chi non è abilitato a
+// lavorare in quel centro (vedi "Centri in cui può lavorare" nella scheda
+// dipendente — nessuna restrizione impostata = disponibile ovunque), chi ha
+// già un turno quel giorno, e chi ha già raggiunto il limite di giorni
+// lavorativi nella settimana. Tra i disponibili preferisce chi ha meno turni
+// assegnati quella settimana, per non ricadere sempre sullo stesso collega.
+function computeCoverageSuggestion(dateStr, mallName, turnoCap, excludeName) {
   const weekStart = getMondayOfDate(dateStr);
   const weekDatesStr = getDatesForWeekStart(weekStart).map(formatHtmlDate);
 
@@ -5485,8 +5561,13 @@ function computeRequestSuggestion(req) {
     });
     return n;
   };
+  const isEligibleForMall = (empName) => {
+    const allowed = state.employeeMalls[empName];
+    return allowed === undefined || allowed.includes(mallName);
+  };
   const isAvailable = (empName) => {
-    if (empName === requesterName) return false;
+    if (empName === excludeName) return false;
+    if (!isEligibleForMall(empName)) return false;
     for (const m of getMallsForDate(dateStr)) {
       for (const t of ['Mattina', 'Pomeriggio']) {
         if (getShiftData(dateStr, m, t).includes(empName)) return false; // già impegnato quel giorno
@@ -5505,68 +5586,94 @@ function computeRequestSuggestion(req) {
     return true;
   };
 
-  const proposedName = req.collega?.full_name;
-  if (proposedName && isAvailable(proposedName)) {
-    return { name: proposedName, reason: 'Collega proposto dal dipendente, disponibile quel giorno' };
-  }
-
   const candidates = state.employees.filter(isAvailable);
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => countShiftsInWeek(a) - countShiftsInWeek(b) || compareEmployeeNames(a, b));
-  return { name: candidates[0], reason: 'Meno turni assegnati questa settimana tra i disponibili' };
+  return { name: candidates[0], reason: `Meno turni assegnati questa settimana tra i disponibili (${countShiftsInWeek(candidates[0])})` };
 }
 
-function getMondayOfDate(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00');
-  const dow = d.getDay();
-  const diff = (dow === 0 ? -6 : 1) - dow;
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
-function goToDateInTurni(dateStr) {
-  const monday = getMondayOfDate(dateStr);
-  state.weekStart = monday;
-  const dayIndex = getDatesForWeekStart(monday).findIndex(d => formatHtmlDate(d) === dateStr);
-  state.mobileDayIndex = dayIndex === -1 ? 0 : dayIndex;
-  navigate('turni');
-}
-
-// Sostituisce, nello slot del turno indicato dalla richiesta, il nome del
-// richiedente con quello del dipendente suggerito (o scelto manualmente).
-// Se il richiedente non risulta più in quello slot (es. turni nel frattempo
-// modificati a mano) lo slot viene comunque occupato se libero, altrimenti
-// l'operazione viene annullata con un avviso.
-function applySlotReplacement(dateStr, mallName, turnoCap, requesterName, newName) {
+// Occupa lo slot indicato con il dipendente suggerito da computeCoverageSuggestion,
+// se ne trova uno disponibile. Restituisce il nome assegnato oppure null.
+function fillVacancyWithSuggestion(dateStr, mallName, turnoCap, excludeName) {
+  const sugg = computeCoverageSuggestion(dateStr, mallName, turnoCap, excludeName);
+  if (!sugg) return null;
   const key = `${dateStr}|${mallName}|${turnoCap}`;
   if (!state.shifts[key]) state.shifts[key] = ['', ''];
   const slot = state.shifts[key];
-  let idx = slot.indexOf(requesterName);
-  if (idx === -1) idx = slot.indexOf('');
-  if (idx === -1) { showToast('Turno già pieno, modifica manualmente', 'error'); return false; }
-  slot[idx] = newName;
+  const idx = slot.indexOf('');
+  if (idx === -1) return null;
+  slot[idx] = sugg.name;
+  return sugg.name;
+}
+
+// Sposta il dipendente dallo slot di partenza a quello di destinazione indicati
+// nella richiesta di cambio turno. Se lo slot di destinazione è già pieno,
+// l'operazione viene annullata con un avviso e la richiesta resta in attesa.
+// Se fillSource è true, prova anche a coprire lo slot di partenza rimasto
+// vacante con il dipendente suggerito da computeCoverageSuggestion.
+function applyCambioTurno(req, fillSource) {
+  const turnoCap = req.turno ? req.turno.charAt(0).toUpperCase() + req.turno.slice(1) : null;
+  const turnoDestCap = req.turno_desiderato ? req.turno_desiderato.charAt(0).toUpperCase() + req.turno_desiderato.slice(1) : null;
+  const empName = req.employees?.full_name;
+  const destKey = `${req.data_a}|${req.mall_desiderato?.name}|${turnoDestCap}`;
+  if (!state.shifts[destKey]) state.shifts[destKey] = ['', ''];
+  const destSlot = state.shifts[destKey];
+  let idx = destSlot.indexOf('');
+  if (idx === -1 && !destSlot.includes(empName)) {
+    showToast('Il turno di destinazione è già pieno, modifica manualmente', 'error');
+    return false;
+  }
+  clearEmployeeFromSlot(req.data_da, req.malls?.name, turnoCap, empName);
+  if (idx !== -1) destSlot[idx] = empName;
+  if (fillSource) fillVacancyWithSuggestion(req.data_da, req.malls?.name, turnoCap, empName);
   return true;
 }
 
-async function resolveRequest(req, stato, employeeName, notaAdmin) {
-  if (stato === 'approvata' && employeeName) {
-    const turnoCap = req.turno ? req.turno.charAt(0).toUpperCase() + req.turno.slice(1) : null;
-    if (req.tipo === 'cambio') {
-      const ok = applySlotReplacement(req.data_da, req.malls?.name, turnoCap, req.employees?.full_name, employeeName);
-      if (!ok) return;
-    } else {
-      // Ferie: sostituisce il richiedente in ogni turno assegnato nell'intervallo di date.
-      const start = new Date(req.data_da + 'T00:00:00');
-      const end = new Date((req.data_a || req.data_da) + 'T00:00:00');
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dStr = formatHtmlDate(d);
-        getMallsForDate(dStr).forEach(m => ['Mattina', 'Pomeriggio'].forEach(t => {
-          if (getShiftData(dStr, m, t).includes(req.employees?.full_name)) {
-            applySlotReplacement(dStr, m, t, req.employees?.full_name, employeeName);
-          }
-        }));
+// Libera tutti i turni del dipendente nell'intervallo di ferie richiesto. Se
+// fillGaps è true, prova a coprire ogni giorno lasciato scoperto con il
+// dipendente suggerito da computeCoverageSuggestion.
+function applyFerie(req, fillGaps) {
+  const empName = req.employees?.full_name;
+  const start = new Date(req.data_da + 'T00:00:00');
+  const end = new Date((req.data_a || req.data_da) + 'T00:00:00');
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dStr = formatHtmlDate(d);
+    getMallsForDate(dStr).forEach(m => ['Mattina', 'Pomeriggio'].forEach(t => {
+      if (getShiftData(dStr, m, t).includes(empName)) {
+        clearEmployeeFromSlot(dStr, m, t, empName);
+        if (fillGaps) fillVacancyWithSuggestion(dStr, m, t, empName);
       }
-    }
+    }));
+  }
+}
+
+// Elenco {dateStr, mallName, turnoCap, suggestion} per ogni turno che la
+// richiesta lascerebbe scoperto, usato solo per l'anteprima nella scheda
+// richiesta (l'assegnazione vera e propria avviene in applyCambioTurno/applyFerie).
+function previewVacancies(req) {
+  if (req.tipo === 'cambio') {
+    const turnoCap = req.turno ? req.turno.charAt(0).toUpperCase() + req.turno.slice(1) : null;
+    return [{ dateStr: req.data_da, mallName: req.malls?.name, turnoCap, suggestion: computeCoverageSuggestion(req.data_da, req.malls?.name, turnoCap, req.employees?.full_name) }];
+  }
+  const empName = req.employees?.full_name;
+  const out = [];
+  const start = new Date(req.data_da + 'T00:00:00');
+  const end = new Date((req.data_a || req.data_da) + 'T00:00:00');
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dStr = formatHtmlDate(d);
+    getMallsForDate(dStr).forEach(m => ['Mattina', 'Pomeriggio'].forEach(t => {
+      if (getShiftData(dStr, m, t).includes(empName)) {
+        out.push({ dateStr: dStr, mallName: m, turnoCap: t, suggestion: computeCoverageSuggestion(dStr, m, t, empName) });
+      }
+    }));
+  }
+  return out;
+}
+
+async function resolveRequest(req, stato, notaAdmin, fillSuggestions) {
+  if (stato === 'approvata') {
+    const ok = req.tipo === 'cambio' ? applyCambioTurno(req, fillSuggestions) : (applyFerie(req, fillSuggestions), true);
+    if (!ok) return;
     renderTurniViews();
     scheduleAutosave();
   }
@@ -5579,11 +5686,17 @@ async function resolveRequest(req, stato, employeeName, notaAdmin) {
   await fetchAdminRequests();
 }
 
+function approveRequestPrompt(reqId, fillSuggestions) {
+  const req = adminRequests.find(r => r.id === reqId);
+  if (!req) return;
+  const nota = prompt('Nota per il dipendente (opzionale):', '') || '';
+  resolveRequest(req, 'approvata', nota.trim() || null, fillSuggestions);
+}
 function rejectRequestPrompt(reqId) {
   const req = adminRequests.find(r => r.id === reqId);
   if (!req) return;
   const nota = prompt('Nota per il dipendente (opzionale):', '') || '';
-  resolveRequest(req, 'rifiutata', null, nota.trim() || null);
+  resolveRequest(req, 'rifiutata', nota.trim() || null);
 }
 
 function renderRichiesteAdmin() {
@@ -5601,31 +5714,35 @@ function renderRichiesteAdmin() {
     const [label, cls] = richiesteStatusLabel(r.stato);
     const nome = getEmployeeDisplayLabel(r.employees?.full_name || '');
     const titolo = r.tipo === 'ferie' ? 'Ferie' : 'Cambio turno';
-    const quando = r.tipo === 'ferie'
-      ? (r.data_a && r.data_a !== r.data_da ? `Dal ${fmtDateIt(r.data_da)} al ${fmtDateIt(r.data_a)}` : fmtDateIt(r.data_da))
-      : `${fmtDateIt(r.data_da)} · ${r.malls?.name || ''} · ${r.turno ? r.turno.charAt(0).toUpperCase() + r.turno.slice(1) : ''}`;
+    let quando;
+    if (r.tipo === 'ferie') {
+      quando = r.data_a && r.data_a !== r.data_da ? `Dal ${fmtDateIt(r.data_da)} al ${fmtDateIt(r.data_a)}` : fmtDateIt(r.data_da);
+    } else {
+      const turnoCap = r.turno ? r.turno.charAt(0).toUpperCase() + r.turno.slice(1) : '';
+      const turnoDestCap = r.turno_desiderato ? r.turno_desiderato.charAt(0).toUpperCase() + r.turno_desiderato.slice(1) : '';
+      quando = `Da: ${fmtDateIt(r.data_da)} · ${r.malls?.name || ''} · ${turnoCap}<br>A: ${fmtDateIt(r.data_a)} · ${r.mall_desiderato?.name || ''} · ${turnoDestCap}`;
+    }
     const inserita = new Date(r.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    let suggestionHtml = '';
+    let azioniHtml = '';
     if (r.stato === 'in_attesa') {
-      const sugg = computeRequestSuggestion(r);
-      suggestionHtml = sugg
-        ? `<div class="mt-3 bg-brand-50 border border-brand-100 rounded-xl p-3">
-             <p class="text-xs font-semibold text-brand-700 mb-0.5"><i class="fa-solid fa-lightbulb mr-1"></i>Suggerimento: ${getEmployeeDisplayLabel(sugg.name)}</p>
-             <p class="text-[11px] text-brand-600/80 mb-2.5">${sugg.reason}</p>
-             <div class="flex flex-wrap gap-2">
-               <button onclick="resolveRequest(adminRequests.find(x=>x.id==='${r.id}'), 'approvata', '${sugg.name.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">Applica suggerimento</button>
-               <button onclick="goToDateInTurni('${r.data_da}')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs font-semibold">Modifica manualmente</button>
-               <button onclick="rejectRequestPrompt('${r.id}')" class="px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-500 text-xs font-semibold">Rifiuta</button>
-             </div>
-           </div>`
-        : `<div class="mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
-             <p class="text-xs font-semibold text-amber-700 mb-2.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Nessun dipendente disponibile trovato automaticamente per coprire il turno.</p>
-             <div class="flex flex-wrap gap-2">
-               <button onclick="goToDateInTurni('${r.data_da}')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs font-semibold">Modifica manualmente</button>
-               <button onclick="rejectRequestPrompt('${r.id}')" class="px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-500 text-xs font-semibold">Rifiuta</button>
-             </div>
-           </div>`;
+      const vacanze = previewVacancies(r);
+      const suggestionsHtml = vacanze.map(v => {
+        const label = `${fmtDateIt(v.dateStr)} · ${v.mallName} · ${v.turnoCap}`;
+        return v.suggestion
+          ? `<p class="text-[11px] text-brand-700"><i class="fa-solid fa-lightbulb mr-1"></i>${label} → <strong>${getEmployeeDisplayLabel(v.suggestion.name)}</strong></p>`
+          : `<p class="text-[11px] text-amber-700"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${label} → nessun dipendente disponibile trovato</p>`;
+      }).join('');
+      const anySuggestion = vacanze.some(v => v.suggestion);
+
+      azioniHtml = `
+        ${suggestionsHtml ? `<div class="mt-3 bg-brand-50 border border-brand-100 rounded-xl p-3 space-y-1">${suggestionsHtml}</div>` : ''}
+        <div class="mt-3 flex flex-wrap gap-2">
+          ${anySuggestion ? `<button onclick="approveRequestPrompt('${r.id}', true)" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">Approva e assegna copertura</button>` : ''}
+          <button onclick="approveRequestPrompt('${r.id}', false)" class="px-3 py-1.5 rounded-lg ${anySuggestion ? 'border border-slate-300 hover:bg-slate-50 text-slate-600' : 'bg-brand-600 hover:bg-brand-700 text-white'} text-xs font-semibold">Approva${anySuggestion ? ' senza copertura' : ''}</button>
+          <button onclick="goToDateInTurni('${r.data_da}')" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs font-semibold">Modifica manualmente</button>
+          <button onclick="rejectRequestPrompt('${r.id}')" class="px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-500 text-xs font-semibold">Rifiuta</button>
+        </div>`;
     }
 
     return `
@@ -5640,7 +5757,7 @@ function renderRichiesteAdmin() {
         </div>
         <span class="richieste-badge ${cls} shrink-0">${label}</span>
       </div>
-      ${suggestionHtml}
+      ${azioniHtml}
     </div>`;
   }).join('');
 }
@@ -5673,6 +5790,7 @@ async function initAppAfterAuth() {
       mallHours: Object.keys(cloudData.mallHours).length ? cloudData.mallHours : state.mallHours,
       employees: cloudData.employees.length ? cloudData.employees : state.employees,
       employeePhones: cloudData.employeePhones,
+      employeeMalls: cloudData.employeeMalls || {},
       shifts: cloudData.shifts,
       maxWorkDaysPerWeek: cloudData.maxWorkDaysPerWeek || state.maxWorkDaysPerWeek,
       settingsPinHash: cloudData.settingsPinHash || state.settingsPinHash
